@@ -1,7 +1,3 @@
-terraform {
-  required_version = ">= 0.14"
-}
-
 # -----------------------------------------------------------------------
 # Variables
 # -----------------------------------------------------------------------
@@ -11,8 +7,9 @@ variable "docker_host" {
 }
 
 variable "splunk_version" {
-  # default = "8.2.2"
-  default = "8.0.4.1"
+  default = "latest"
+  # default = "8.2.6"
+  # default = "8.0.4.1"
   # default = "8.1"
 }
 
@@ -35,7 +32,7 @@ variable "fluentd_splunk_hec_version" {
 
 terraform {
   backend "local" {
-    path = "/root/tfstate/terraform.tfstate"
+    path = ".terraform/terraform.tfstate"
   }
 }
 
@@ -119,12 +116,6 @@ resource "docker_container" "fluentd" {
 # Telegraf resources
 # -----------------------------------------------------------------------
 
-data "template_file" "telegraf_configuration" {
-  template = file(
-    "${path.cwd}/config/telegraf.conf",
-  )
-}
-
 resource "docker_image" "telegraf" {
   name         = "telegraf:${var.telegraf_version}"
   keep_locally = true
@@ -138,7 +129,7 @@ resource "docker_container" "telegraf" {
     ipv4_address = "10.42.10.102"
   }
   upload {
-    content = data.template_file.telegraf_configuration.rendered
+    content = templatefile("${path.cwd}/config/telegraf.conf", { test = "var" })
     file    = "/etc/telegraf/telegraf.conf"
   }
 }
@@ -146,10 +137,6 @@ resource "docker_container" "telegraf" {
 # -----------------------------------------------------------------------
 # Vault data and resources
 # -----------------------------------------------------------------------
-
-data "template_file" "vault_configuration" {
-  template = (file("${path.cwd}/config/vault.hcl"))
-}
 
 resource "docker_image" "vault" {
   name         = "vault:${var.vault_version}"
@@ -183,7 +170,7 @@ resource "docker_container" "vault" {
     protocol = "tcp"
   }
   upload {
-    content = data.template_file.vault_configuration.rendered
+    content = templatefile("${path.cwd}/config/vault.hcl", { test = "var" })
     file    = "/vault/config/main.hcl"
   }
   volumes {
